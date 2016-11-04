@@ -36,7 +36,8 @@
         <java jar="${FLEX_HOME}/lib/asdoc.jar" dir="${FLEX_HOME}/frameworks" fork="true" failonerror="true">
             <arg value="-doc-sources=${src}"/>
             <arg value="-output=${doc}"/>
-            <arg value="-external-library-path+=${FLEX_HOME}/frameworks/libs/air,${FLEX_HOME}/frameworks/libs/air,${dependencies}"/>
+            <!--${FLEX_HOME}/frameworks/libs/player/20.0"-->
+            <arg value="-external-library-path+=${FLEX_HOME}/frameworks/libs/air,${dependencies}"/>
             <arg value="-define=CONFIG::debug,true"/>
         </java>
         <zip destfile="${swc}/${swc_name}" update="true">
