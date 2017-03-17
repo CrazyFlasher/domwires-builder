@@ -2,14 +2,11 @@
 <project name="domwires-builder" basedir="" default="package_swc">
 
 	<property environment="env."/>
-	<property name="FLEX_HOME" location="${env.FLEX_HOME}"/>
 	<property name="FLASH_PLAYER_EXE" location="${env.FLASH_PLAYER_EXE}"/>
 	<property name="FLASH_IDE_EXE" location="${env.FLASH_IDE_EXE}"/>
-    <property name="compc.jar" value="${FLEX_HOME}/lib/compc.jar"/>
+    <!--<property name="compc.jar" value="${FLEX_HOME}/lib/compc.jar"/>-->
 
     <property name="flexunit.version" value="4.2.0"/>
-
-	<taskdef resource="flexTasks.tasks" classpath="${FLEX_HOME}/ant/lib/flexTasks.jar" />
 
     <property name="flashDep" value="${user.home}/.m2/repository/com/crazyfm/tools/flashDep/0.1.0/flashDep-0.1.0.jar"/>
 
@@ -24,20 +21,51 @@
     <property name="debug" value="false"/>
     <property name="pom" value="pom.xml"/>
     <property name="local_dependencies" value=""/>
+    <property name="flex_sdk_url" value="https://github.com/apache/flex-sdk/archive/apache-flex-sdk-4.16.0.zip"/>
+    <property name="flex_sdk_path" location="${user.home}/.m2/repository/org/apache"/>
+    <property name="flex_home" location="${user.home}/.m2/repository/org/apache/flex-sdk-4.16.0"/>
+    <property name="flexunit" location="${user.home}/.m2/repository/org/apache/flexunit/${flexunit.version}"/>
     <!--<property name="maven.deploy.repo" value="https://raw.github.com/CrazyFlasher/maven-repo/master"/>-->
 
-    <property name="flexunit" location="${user.home}/.m2/repository/org/apache/flexunit/${flexunit.version}"/>
+    <target name="resolve-player-global">
+        <!--http://fpdownload.macromedia.com/get/flashplayer/updaters/24/playerglobal24_0.swc-->
+    </target>
+
+    <target name="prepare-flex_sdk" depends="check-flex-sdk-folder" unless="flex_sdk_folder.present">
+        <antcall target="resolve-flex_sdk"/>
+    </target>
+
+    <target name="resolve-flex_sdk" depends="download-flex-sdk,unpack-flex-sdk">
+        <taskdef resource="flexTasks.tasks" classpath="${flex_home}/ant/lib/flexTasks.jar"/>
+    </target>
+
+    <target name="download-flex-sdk" depends="check-flex-sdk-zip" unless="flex_sdk_zip.present">
+        <get src="${flex_sdk_url}" dest="${flex_sdk_path}/flex.zip"/>
+    </target>
+    <target name="unpack-flex-sdk" depends="check-flex-sdk-folder" unless="flex_sdk_folder.present">
+        <unzip src="${flex_sdk_path}/flex.zip" dest="${flex_sdk_path}"/>
+        <move todir="${flex_home}">
+            <fileset dir="${flex_sdk_path}/flex-sdk-apache-flex-sdk-4.16.0"/>
+        </move>
+        <delete dir="${flex_sdk_path}/flex-sdk-apache-flex-sdk-4.16.0"/>
+    </target>
+    <target name="check-flex-sdk-zip">
+        <available file="${flex_sdk_path}/flex.zip" property="flex_sdk_zip.present"/>
+    </target>
+    <target name="check-flex-sdk-folder">
+        <available file="${flex_home}" type="dir" property="flex_sdk_folder.present"/>
+    </target>
 
     <taskdef resource="flexUnitTasks.tasks" classpath="${flexunit}/flexUnitTasks-${flexunit.version}-20140410.jar"/>
 
     <target name="package_swc" depends="clean,swc,test,asdoc,maven-install"/>
     <target name="asdoc" depends="build_dep_paths">
         <delete dir="${doc}"/>
-        <java jar="${FLEX_HOME}/lib/asdoc.jar" dir="${FLEX_HOME}/frameworks" fork="true" failonerror="true">
+        <java jar="${flex_home}/lib/asdoc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
             <arg value="-doc-sources=${src}"/>
             <arg value="-output=${doc}"/>
-            <!--${FLEX_HOME}/frameworks/libs/player/20.0"-->
-            <arg value="-external-library-path+=${FLEX_HOME}/frameworks/libs/air,${dependencies}"/>
+            <!--${flex_home}/frameworks/libs/player/20.0"-->
+            <arg value="-external-library-path+=${flex_home}/frameworks/libs/air,${dependencies}"/>
             <arg value="-define=CONFIG::debug,true"/>
         </java>
         <zip destfile="${swc}/${swc_name}" update="true">
@@ -50,7 +78,7 @@
         <!--<delete dir="${doc}"/>-->
     </target>
     <target name="swf" depends="build_dep_paths">
-        <java jar="${FLEX_HOME}/lib/mxmlc.jar" dir="${FLEX_HOME}/frameworks" fork="true" failonerror="true">
+        <java jar="${flex_home}/lib/mxmlc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
             <arg value="${main_class}"/>
             <arg value="-source-path+=${src}"/>
             <arg value="-swf-version=${swf-version}"/>
@@ -67,11 +95,11 @@
             <!--<include name="**/*" />-->
         <!--</dirset>-->
         <!--<pathconvert property="classes" pathsep="," refid="sources"/>-->
-        <java jar="${FLEX_HOME}/lib/compc.jar" dir="${FLEX_HOME}/frameworks" fork="true" failonerror="true">
+        <java jar="${flex_home}/lib/compc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
             <arg value="-source-path=${src}"/>
             <arg value="-include-sources=${src}"/>
             <arg value="-output=${swc}/${swc_name}"/>
-            <arg value="-external-library-path+=${FLEX_HOME}/frameworks/libs/air,${FLEX_HOME}/frameworks/libs/air,${dependencies}"/>
+            <arg value="-external-library-path+=${flex_home}/frameworks/libs/air,${flex_home}/frameworks/libs/air,${dependencies}"/>
             <!--<arg value="-debug=${debug}"/>-->
             <arg value="-define=CONFIG::debug,${debug}"/>
         </java>
@@ -85,7 +113,7 @@
     </target>
     <target name="test" depends="build_dep_paths,prepare-flexunit">
         <mkdir dir="${out}/tests/report/html"/>
-        <java jar="${FLEX_HOME}/lib/mxmlc.jar" dir="${FLEX_HOME}/frameworks" fork="true" failonerror="true">
+        <java jar="${flex_home}/lib/mxmlc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
             <arg value="${basedir}/tests/TestSuite.as"/>
             <arg value="-source-path+=${src}"/>
             <arg value="-swf-version=${swf-version}"/>
@@ -121,7 +149,7 @@
         <unzip src="${flexunit}/flexunit-${flexunit.version}.zip" dest="${flexunit}"/>
         <taskdef resource="flexUnitTasks.tasks" classpath="${flexunit}/flexUnitTasks-${flexunit.version}-20140410.jar"/>
     </target>
-    <target name="prepare" depends="-init-ooo">
+    <target name="prepare" depends="-init-ooo,prepare-flex_sdk">
         <delete dir="${deploy.dir}"/>
         <mavendep pom="${pom}"/>
     </target>
