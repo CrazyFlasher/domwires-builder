@@ -86,7 +86,7 @@
     <taskdef resource="flexTasks.tasks" classpath="${flex_home}/ant/lib/flexTasks.jar"/>
     <taskdef resource="flexUnitTasks.tasks" classpath="${flexunit}/flexUnitTasks-${flexunit.version}-20140410.jar"/>
 
-    <target name="package_swc" depends="clean,prepare-sdk,swc,test,asdoc,maven-install"/>
+    <target name="package_swc" depends="clean,swc,test,asdoc,maven-install"/>
     <target name="asdoc" depends="build_dep_paths">
         <delete dir="${doc}"/>
         <java jar="${flex_home}/lib/asdoc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
@@ -105,7 +105,7 @@
         </zip>
         <!--<delete dir="${doc}"/>-->
     </target>
-    <target name="swf" depends="build_dep_paths">
+    <target name="swf" depends="prepare-sdk,build_dep_paths">
         <java jar="${flex_home}/lib/mxmlc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
             <arg value="${main_class}"/>
             <arg value="-source-path+=${src}"/>
@@ -118,7 +118,7 @@
             <arg value="-debug=${debug}"/>
         </java>
     </target>
-    <target name="swc" depends="build_dep_paths">
+    <target name="swc" depends="prepare-sdk,build_dep_paths">
         <!--<dirset id="sources" dir="${src}">-->
             <!--<include name="**/*" />-->
         <!--</dirset>-->
@@ -177,7 +177,7 @@
         <unzip src="${flexunit}/flexunit-${flexunit.version}.zip" dest="${flexunit}"/>
         <taskdef resource="flexUnitTasks.tasks" classpath="${flexunit}/flexUnitTasks-${flexunit.version}-20140410.jar"/>
     </target>
-    <target name="prepare" depends="-init-ooo,prepare-sdk">
+    <target name="prepare" depends="-init-ooo">
         <delete dir="${deploy.dir}"/>
         <mavendep pom="${pom}"/>
     </target>
