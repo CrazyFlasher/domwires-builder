@@ -1,10 +1,11 @@
 <?xml version="1.0"?>
 <project name="domwires-builder" basedir="" default="package_swc">
 
+    <taskdef resource="net/sf/antcontrib/antlib.xml" classpath="${user.home}/.m2/repository/ant-contrib/ant-contrib/1.0b2/ant-contrib-1.0b2.jar"/>
+
     <property environment="env."/>
     <property name="FLASH_PLAYER_EXE" location="${env.FLASH_PLAYER_EXE}"/>
     <property name="FLASH_IDE_EXE" location="${env.FLASH_IDE_EXE}"/>
-    <!--<property name="compc.jar" value="${FLEX_HOME}/lib/compc.jar"/>-->
 
     <property name="flexunit.version" value="4.2.0"/>
 
@@ -21,35 +22,14 @@
     <property name="debug" value="false"/>
     <property name="pom" value="pom.xml"/>
     <property name="local_dependencies" value=""/>
-    <property name="flex_sdk_optionals_url" value="https://raw.github.com/CrazyFlasher/maven-repo/master/flex-sdk-4.16.0"/>
-    <property name="flex_sdk_url" value="http://www-us.apache.org/dist/flex/4.16.0/binaries/apache-flex-sdk-4.16.0-bin.zip"/>
-    <property name="flex_sdk_path" location="${user.home}/.m2/repository/org/apache"/>
-    <property name="flex_home" location="${user.home}/.m2/repository/org/apache/flex-sdk-4.16.0"/>
-    <property name="air_sdk_url" value="https://airdownload.adobe.com/air/win/download/${target-player}.0/AdobeAIRSDK.zip"/>
-    <property name="air_sdk_path" location="${user.home}/.m2/repository/org/apache"/>
-    <property name="air_home" location="${user.home}/.m2/repository/org/apache/air-${target-player}"/>
+    <property name="air_sdk_path" value="${user.home}/.m2/repository/com/adobe"/>
+    <property name="air_sdk_url" value="https://airdownload.adobe.com/air/win/download/${target-player}.0/AIRSDK_Compiler.zip"/>
+    <property name="air_home" location="${air_sdk_path}/air-${target-player}"/>
     <property name="flexunit" location="${user.home}/.m2/repository/org/apache/flexunit/${flexunit.version}"/>
     <!--<property name="maven.deploy.repo" value="https://raw.github.com/CrazyFlasher/maven-repo/master"/>-->
 
-    <target name="prepare-sdk" depends="prepare-flex_sdk,prepare-air_sdk,merge-flex-air">
-
-        <taskdef resource="flexTasks.tasks" classpath="${flex_home}/ant/lib/flexTasks.jar"/>
-    </target>
-    <target name="merge-flex-air" depends="check-sdk-merged" unless="sdk-merged.present">
-        <copy todir="${flex_home}" overwrite="true">
-            <fileset dir="${air_home}"/>
-        </copy>
-        <!--HACK-->
-        <mkdir dir="${flex_home}/frameworks/libs/player/11.1"/>
-        <copy todir="${flex_home}/frameworks/libs/player/11.1">
-            <fileset dir="${flex_home}/frameworks/libs/player/${target-player}.0"/>
-        </copy>
-        <echo file="${flex_sdk_path}/merged" append="false">Flex and AIR merged!</echo>
-    </target>
-    <target name="check-sdk-merged">
-        <available file="${flex_sdk_path}/merged" property="sdk-merged.present"/>
-    </target>
     <target name="prepare-air_sdk" depends="check-air-sdk-folder" unless="air_sdk_folder.present">
+        <taskdef resource="flexTasks.tasks" classpath="${air_home}/ant/lib/flexTasks.jar"/>
         <antcall target="resolve-air_sdk"/>
     </target>
     <target name="resolve-air_sdk" depends="download-air-sdk,unpack-air-sdk"/>
@@ -57,103 +37,55 @@
         <get src="${air_sdk_url}" dest="${air_sdk_path}/air-${target-player}.zip" skipexisting="true"/>
     </target>
     <target name="unpack-air-sdk" depends="check-air-sdk-folder" unless="air_sdk_folder.present">
-        <delete file="${flex_sdk_path}/merged"/>
-        <unzip src="${air_sdk_path}/air-${target-player}.zip" dest="${air_home}"/>
+        <taskdef resource="net/sf/antcontrib/antlib.xml" classpath="${user.home}/.m2/repository/ant-contrib/ant-contrib/1.0b2/ant-contrib-1.0b2.jar"/>
+        <trycatch reference="exception_ref">
+            <try>
+                <unzip src="${air_sdk_path}/air-${target-player}.zip" dest="${air_home}"/>
+            </try>
+            <catch>
+                <echo>Cannot uzip file! Re-downloading...</echo>
+                <delete file="${air_sdk_path}/air-${target-player}.zip"/>
+                <antcall target="prepare-air_sdk"/>
+            </catch>
+        </trycatch>
     </target>
     <target name="check-air-sdk-folder">
         <available file="${air_home}" type="dir" property="air_sdk_folder.present"/>
     </target>
 
-    <target name="prepare-flex_sdk" depends="check-flex-sdk-folder" unless="flex_sdk_folder.present">
-        <antcall target="resolve-flex_sdk"/>
-    </target>
-    <target name="resolve-flex_sdk" depends="download-flex-sdk,unpack-flex-sdk,download-sdk-optionals"/>
-    <target name="download-flex-sdk">
-        <get src="${flex_sdk_url}" dest="${flex_sdk_path}/flex-${target-player}.zip" skipexisting="true"/>
-    </target>
-    <target name="unpack-flex-sdk" depends="check-flex-sdk-folder" unless="flex_sdk_folder.present">
-        <unzip src="${flex_sdk_path}/flex-${target-player}.zip" dest="${flex_home}"/>
-        <echo file="${flex_home}/env.properties" append="false">env.PLAYERGLOBAL_HOME=libs/player${line.separator}</echo>
-        <echo file="${flex_home}/env.properties" append="true">env.AIR_HOME=${flex_home}</echo>
-        <replace file="${flex_home}/env.properties" token="\" value="/"/>
-    </target>
-    <target name="check-flex-sdk-folder">
-        <available file="${flex_home}" type="dir" property="flex_sdk_folder.present"/>
-    </target>
-
-    <target name="download-sdk-optionals">
-        <mkdir dir="${flex_home}/lib/external/optional"/>
-        <antcall target="download-osmf"/>
-        <antcall target="download-afe"/>
-        <antcall target="download-aglj40"/>
-        <antcall target="download-flex-fontkit"/>
-        <antcall target="download-rideau"/>
-    </target>
-
-    <target name="download-osmf">
-        <get
-                src="${flex_sdk_optionals_url}/frameworks/libs/osmf.swc"
-                dest="${flex_home}/frameworks/libs/osmf.swc"
-                skipexisting="true"
-        />
-    </target>
-    <target name="download-afe">
-        <get
-                src="${flex_sdk_optionals_url}/lib/external/optional/afe.jar"
-                dest="${flex_home}/lib/external/optional/afe.jar"
-                skipexisting="true"
-        />
-    </target>
-    <target name="download-aglj40">
-        <get
-                src="${flex_sdk_optionals_url}/lib/external/optional/aglj40.jar"
-                dest="${flex_home}/lib/external/optional/aglj40.jar"
-                skipexisting="true"
-        />
-    </target>
-    <target name="download-flex-fontkit">
-        <get
-                src="${flex_sdk_optionals_url}/lib/external/optional/flex-fontkit.jar"
-                dest="${flex_home}/lib/external/optional/flex-fontkit.jar"
-                skipexisting="true"
-        />
-    </target>
-    <target name="download-rideau">
-        <get
-                src="${flex_sdk_optionals_url}/lib/external/optional/rideau.jar"
-                dest="${flex_home}/lib/external/optional/rideau.jar"
-                skipexisting="true"
-        />
-    </target>
-
-    <taskdef resource="flexTasks.tasks" classpath="${flex_home}/ant/lib/flexTasks.jar"/>
+    <taskdef resource="flexTasks.tasks" classpath="${air_home}/ant/lib/flexTasks.jar"/>
     <taskdef resource="flexUnitTasks.tasks" classpath="${flexunit}/flexUnitTasks-${flexunit.version}-20140410.jar"/>
 
     <target name="package_swc" depends="clean,swc,test,asdoc,maven-install"/>
     <target name="asdoc" depends="build_dep_paths">
         <delete dir="${doc}"/>
-        <java jar="${flex_home}/lib/asdoc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
+        <java jar="${air_home}/lib/legacy/asdoc.jar" dir="${air_home}/frameworks" fork="true" failonerror="true">
+            <arg value="+flexlib=${air_home}/frameworks"/>
+            <arg value="-swf-version=${swf-version}"/>
             <arg value="-doc-sources=${src}"/>
+            <arg value="-strict=false"/>
+            <arg value="-theme="/>                               <!-- shut down weird ASC2 error -->
+            <arg value="-compiler.fonts.local-fonts-snapshot="/> <!-- shut down weird ASC2 error -->
             <arg value="-output=${doc}"/>
-            <!--${flex_home}/frameworks/libs/player/20.0"-->
-            <arg value="-external-library-path+=${flex_home}/frameworks/libs/air,${dependencies}"/>
-            <arg value="-define=CONFIG::debug,true"/>
+            <!--${air_home}/frameworks/libs/player/20.0"-->
+            <arg value="-external-library-path+=${air_home}/frameworks/libs/air,${dependencies}"/>
         </java>
         <zip destfile="${swc}/${swc_name}" update="true">
             <zipfileset dir="${doc}" prefix="docs">
                 <!--<include name="*.*"/>-->
-                <exclude name="ASDoc_Config.xml"/>
-                <exclude name="overviews.xml"/>
+                <exclude name="ASDoc_Config_Base.xml"/>
+                <exclude name="Overviews_Base.xml"/>
             </zipfileset>
         </zip>
         <!--<delete dir="${doc}"/>-->
     </target>
-    <target name="swf" depends="prepare-sdk,build_dep_paths">
-        <java jar="${flex_home}/lib/mxmlc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
+    <target name="swf" depends="prepare-air_sdk,build_dep_paths">
+        <java jar="${air_home}/lib/mxmlc-cli.jar" dir="${air_home}/frameworks" fork="true" failonerror="true">
             <arg value="${main_class}"/>
             <arg value="-source-path+=${src}"/>
             <arg value="-swf-version=${swf-version}"/>
             <arg value="-library-path+=${dependencies},${local_dependencies}"/>
+            <arg value="-external-library-path+=${air_home}/frameworks/libs/air"/>
             <arg value="-output=${out}/${swf_name}"/>
             <arg value="-keep-as3-metadata+=Autowired"/>
             <arg value="-keep-as3-metadata+=PostConstruct"/>
@@ -161,16 +93,17 @@
             <arg value="-debug=${debug}"/>
         </java>
     </target>
-    <target name="swc" depends="prepare-sdk,build_dep_paths">
+    <target name="swc" depends="prepare-air_sdk,build_dep_paths">
         <!--<dirset id="sources" dir="${src}">-->
         <!--<include name="**/*" />-->
         <!--</dirset>-->
         <!--<pathconvert property="classes" pathsep="," refid="sources"/>-->
-        <java jar="${flex_home}/lib/compc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
+        <java jar="${air_home}/lib/compc-cli.jar" dir="${air_home}/frameworks" fork="true" failonerror="true">
+            <arg value="-strict=false"/>
             <arg value="-source-path=${src}"/>
             <arg value="-include-sources=${src}"/>
             <arg value="-output=${swc}/${swc_name}"/>
-            <arg value="-external-library-path+=${flex_home}/frameworks/libs/air,${flex_home}/frameworks/libs/air,${dependencies}"/>
+            <arg value="-external-library-path+=${air_home}/frameworks/libs/air,${dependencies}"/>
             <!--<arg value="-debug=${debug}"/>-->
             <arg value="-define=CONFIG::debug,${debug}"/>
         </java>
@@ -184,12 +117,13 @@
     </target>
     <target name="test" depends="build_dep_paths,prepare-flexunit">
         <mkdir dir="${out}/tests/report/html"/>
-        <java jar="${flex_home}/lib/mxmlc.jar" dir="${flex_home}/frameworks" fork="true" failonerror="true">
+        <java jar="${air_home}/lib/mxmlc-cli.jar" dir="${air_home}/frameworks" fork="true" failonerror="true">
             <arg value="${basedir}/tests/TestSuite.as"/>
             <arg value="-source-path+=${src}"/>
             <arg value="-swf-version=${swf-version}"/>
             <arg value="-library-path+=${flexunit},${dependencies}"/>
             <arg value="-output=${out}/tests/TestRunner.swf"/>
+            <arg value="-external-library-path+=${air_home}/frameworks/libs/air,${dependencies}"/>
             <arg value="-keep-as3-metadata+=Autowired"/>
             <arg value="-keep-as3-metadata+=PostConstruct"/>
             <arg value="-keep-as3-metadata+=PostInject"/>
